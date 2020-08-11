@@ -1,0 +1,487 @@
+<!--
+ * @Author: TonyJiangWJ
+ * @Date: 2020-08-08 00:07:29
+ * @Last Modified by: TonyJiangWJ
+ * @Last Modified time: 2020-08-11 00:39:14
+ * @Description: 
+-->
+<html>
+<meta charset="UTF-8">
+
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></script>
+</head>
+<style>
+  body {
+    width: 900px;
+  }
+
+  .line {
+    width: 720px;
+    height: 22px;
+    display: block;
+  }
+
+  .line>div {
+    width: 20px;
+    height: 20px;
+    float: left;
+    margin: 2;
+    background-color: aqua;
+    transition: 1s height, 1s width;
+  }
+
+  .line>div:hover {
+    background-color: aquamarine;
+  }
+
+  .hh {
+    background-color: red !important;
+  }
+
+  .hb {
+    background-color: gray !important;
+  }
+
+  .mask {
+    position: absolute;
+    background: #409eff;
+    opacity: 0.4;
+  }
+
+  button {
+    margin: 5;
+    font-size: 1rem;
+  }
+
+  .display-content {
+    font-size: 1rem;
+  }
+
+  :root {
+    font-size: 0.75em;
+  }
+
+  @media screen and (min-width: 500px) {
+    :root {
+      font-size: 1.175em;
+    }
+    button,.display-content {
+      margin: 5;
+      font-size: 1.5rem;
+    }
+  }
+
+  @media screen and (min-width: 800px) {
+    :root {
+      font-size: 1.175em;
+    }
+    button,.display-content {
+      margin: 5;
+      font-size: 1.25rem;
+    }
+  }
+  @media screen and (min-width: 1200px) {
+    :root {
+      font-size: 0.875em;
+    }
+    button,.display-content {
+      margin: 5;
+      font-size: 1rem;
+    }
+  } /**/
+</style>
+
+<body>
+  <div class="mask" id="mask"></div>
+
+  <div id="container">
+
+  </div>
+
+  <div style="display: inline-block;"></div>
+  <div style="display: inline-block;">
+    <div>
+      <button onclick="showAllChecked()">生成结果</button>
+      <button onclick="transeferToGraph()">转换到图像</button>
+      <button onclick="toggleColor()" id="toggle_color_btn" class="hh">切换颜色</button>
+      <button onclick="clearGraph()">清空图像</button>
+    </div>
+    <div></div>
+    <div>
+      <textarea id="result" cols="100" rows="5"></textarea>
+    </div>
+    <div>
+      <button onclick="generateJava()">转换java数组</button>
+      <button onclick="backToList()">转换js数组</button>
+      <button onclick="toMultiConfig()">转换多点找色数组</button>
+    </div>
+    <div>
+      <span class="display-content">像素点数量：</span><input class="display-content" id="block_size" value="30" type="number" min="10" max="100"
+        onkeydown="handleKeyDown(event)" />
+      <button onclick="addBlock()" id="add_btn" class="block-change-btn">增加像素点</button>
+      <button onclick="removeBlock()" id="remove_btn" class="block-change-btn">减少像素点</button>
+    </div>
+  </div>
+</body>
+
+<script>
+  let block_width = 24
+  let color_class = 'hh'
+  let block_size = 30
+  let block_gap = 2
+  let preventEvent = 0, prevent = false
+  $(function () {
+    renderBlocks()
+    document.body.addEventListener('mousedown', handleMouseDown)
+    document.body.addEventListener('touchstart', handleMouseDown)
+  })
+
+  function renderBlocks() {
+    $('#block_size').val(block_size)
+    let target = document.getElementById('container')
+    let html = ''
+    for (let y = 0; y < block_size; y++) {
+      html += '<div class="line">'
+      for (let x = 0; x < block_size; x++) {
+        html += '<div id="' + x + '_' + y + '" data-x="' + x + '" data-y="' + y + '"></div>'
+      }
+      html += '</div>\n'
+    }
+    target.innerHTML = html
+
+    if (block_size > 50) {
+      block_gap = 1
+    } else {
+      block_gap = 2
+    }
+    let gap = block_gap * 2
+    if (block_size * 24 > 1000) {
+      block_width = parseInt(1000 / block_size)
+      $('.line>div').each((i, e) => $(e).css('width', `${block_width - gap}px`).css('height', `${block_width - gap}px`).css('margin', `${block_gap}`))
+      block_gap = 1
+    } else {
+      block_width = 24
+      $('.line>div').each((i, e) => $(e).css('width', `${block_width - gap}px`).css('height', `${block_width - gap}px`).css('margin', `${block_gap}`))
+    }
+    $('div.line').each((i, e) => $(e).css('width', `${parseInt(block_width * block_size)}px`).css('height', `${block_width - block_gap}`))
+
+    let $lines = $(target).find('.line')
+    console.log($lines.length)
+    // debugger
+    $lines.each((idx, line) => {
+      let blocks = $(line).find('div')
+      blocks.each((idx, block) => {
+        $(block).on('click', function (event) {
+          let $target = $(event.target)
+          if ($target.hasClass('hh') || $target.hasClass('hb')) {
+            $target.removeClass('hh')
+            $target.removeClass('hb')
+          } else {
+            $target.addClass(color_class)
+          }
+        })
+      })
+    })
+  }
+
+  function handleKeyDown(event) {
+    if (event.keyCode === 13) {
+      block_size = $('#block_size').val()
+      handleBlockSizeChanged()
+    } else {
+      console.log(event.keyCode)
+    }
+  }
+
+  function handleBlockSizeChanged() {
+    $('.block-change-btn').attr('disabled', 'disabled')
+    let checked = getAllCheckedContent()
+    renderBlocks()
+    transeferToGraph(checked)
+    $('.block-change-btn').removeAttr('disabled')
+  }
+
+  function addBlock() {
+    if (block_size < 100) {
+      block_size++
+      handleBlockSizeChanged()
+    }
+  }
+
+  function removeBlock() {
+    if (block_size > 10) {
+      block_size--
+      handleBlockSizeChanged()
+    }
+  }
+
+  function handleMouseDown(event) {
+    document.body.addEventListener('mousemove', handleMouseMove)
+    document.body.addEventListener('mouseup', handleMouseUp)
+    document.body.addEventListener('touchmove', handleMouseMove)
+    document.body.addEventListener('touchend', handleMouseUp)
+    window.start_X = event.clientX
+    window.start_Y = event.clientY
+    if (event.type === 'touchstart') {
+      window.start_X = event.touches[0].clientX
+      window.start_Y = event.touches[0].clientY
+      preventEvent = setTimeout(function () {
+        prevent = true
+      }, 500)
+    }
+    console.log('mousedown set x = ' + window.start_X)
+    window.showMask = true
+    $('#mask').show()
+    document.body.removeEventListener('mousedown', handleMouseDown)
+    document.body.removeEventListener('touchstart', handleMouseDown)
+  }
+
+  function handleMouseMove(event) {
+    window.end_X = event.clientX
+    window.end_Y = event.clientY
+    if (event.type === 'touchmove') {
+      window.end_X = event.touches[0].clientX
+      window.end_Y = event.touches[0].clientY
+      if (prevent && prevent.cancelable) {
+        event.preventDefault()
+      }
+    }
+    // $('#mask').show()
+    setMaskWidth()
+  }
+
+  function handleMouseUp(event) {
+    window.end_X = event.clientX
+    window.end_Y = event.clientY
+    if (event.type === 'touchend') {
+      window.end_X = event.changedTouches[0].clientX
+      window.end_Y = event.changedTouches[0].clientY
+      clearTimeout(preventEvent)
+      prevent = false
+    }
+    document.body.removeEventListener('mousemove', handleMouseMove)
+    document.body.removeEventListener('mouseup', handleMouseUp)
+    document.body.removeEventListener('touchmove', handleMouseMove)
+    document.body.removeEventListener('touchend', handleMouseUp)
+    console.log(`${window.start_X + ',' + window.start_Y} => ${window.end_X + ',' + window.end_Y}`)
+    window.showMask = false
+    setMaskWidth()
+    calDoms()
+    document.body.addEventListener('mousedown', handleMouseDown)
+    document.body.addEventListener('touchstart', handleMouseDown)
+  }
+
+  function setMaskWidth() {
+    if (window.showMask) {
+      let width = Math.abs(window.end_X - window.start_X)
+      let height = Math.abs(window.end_Y - window.start_Y)
+      let left = Math.min(window.start_X, window.end_X)
+      let top = Math.min(window.start_Y, window.end_Y)
+      let scroll = document.body.scrollTop
+      // console.log(`${left},${top} ${width},${height}`)
+      $('#mask').css('width', width)
+      $('#mask').css('height', height)
+      $('#mask').css('left', left)
+      $('#mask').css('top', top + scroll)
+    } else {
+      $('#mask').css('width', 0)
+      $('#mask').css('height', 0)
+      $('#mask').hide()
+    }
+  }
+
+  function calDoms() {
+    if (window.start_X == -1 || window.start_Y == -1 || window.end_X == -1 || window.end_Y == -1) {
+      return
+    }
+    let scroll = document.body.scrollTop
+    let width = Math.abs(window.end_X - window.start_X)
+    let height = Math.abs(window.end_Y - window.start_Y)
+    let left = Math.min(window.start_X, window.end_X)
+    let top = Math.min(window.start_Y, window.end_Y) + scroll
+    let right = Math.max(window.start_X, window.end_X)
+    let bottom = Math.max(window.start_Y, window.end_Y) + scroll
+    let x = Math.ceil(left / block_width) - 1
+    let y = Math.ceil(top / block_width) - 1
+    let x_size = Math.ceil(width / block_width)
+    let y_size = Math.ceil(height / block_width)
+    console.log(`width:${width} height:${height}`)
+    console.log(`${x + ',' + y} ${x_size}: ${y_size}`)
+    if (x_size <= 1 && y_size <= 1) {
+      return
+    }
+    let checkX = x, checkY = y
+    if (window.start_X > window.end_X) {
+      checkX = Math.ceil(right / block_width) - 1
+    }
+    if (window.start_Y > window.end_Y) {
+      checkY = Math.ceil(bottom / block_width) - 1
+    }
+    window.start_X = -1
+    window.end_X = -1
+    window.start_Y = -1
+    window.end_Y = -1
+    let rangeInfo = []
+    let $checkTarget = $(`#${checkX}_${checkY}`)
+    let removeClass = $checkTarget.hasClass('hh') || $checkTarget.hasClass('hb')
+    for (let startX = 0; startX < x_size; startX++) {
+      for (let startY = 0; startY < y_size; startY++) {
+        rangeInfo.push({ x: startX + x, y: startY + y })
+        let target = $('#' + `${startX + x}_${startY + y}`)
+        if (removeClass) {
+          target.removeClass('hh')
+          target.removeClass('hb')
+        } else {
+          target.addClass(color_class)
+        }
+      }
+    }
+  }
+
+  function transeferToGraph(val) {
+    clearGraph()
+    let content = val || $('#result').val()
+    if (content) {
+      let dataList = JSON.parse(content)
+      let minx = 10000, miny = 10000;
+      for (let idx in dataList) {
+        let data = dataList[idx]
+        if (minx > parseInt(data.x)) {
+          minx = parseInt(data.x)
+        }
+        if (miny > parseInt(data.y)) {
+          miny = parseInt(data.y)
+        }
+      }
+      let offsetX = -minx, offsetY = -miny
+      for (let idx in dataList) {
+        let data = dataList[idx]
+        $('#' + (parseInt(data.x) + offsetX) + '_' + (parseInt(data.y) + offsetY)).addClass(data.b ? 'hb' : 'hh')
+      }
+    }
+  }
+
+  function clearGraph() {
+    $('div.hh').each((i, e) => $(e).removeClass('hh'))
+    $('div.hb').each((i, e) => $(e).removeClass('hb'))
+  }
+
+  function getAllCheckedInfo() {
+    let checked = $('div.hh,div.hb')
+    let length = checked.length
+    let result = ''
+    let find = false, findX = 0
+    let offsetY = 0
+    while (length > 0 && !find) {
+      let minY = 1000
+      checked.each((idx, elem) => {
+        if (!find) {
+          let y = parseInt($(elem).data('y'))
+          if (y === offsetY) {
+            findX = parseInt($(elem).data('x'))
+            find = true
+          }
+          if (minY > y) {
+            minY = y
+          }
+        }
+      })
+      if (!find) {
+        offsetY = minY
+      }
+    }
+    return {
+      sorted: checked.sort((a, b) => {
+        if (parseInt($(a).data('x')) > parseInt($(b).data('x'))) {
+          return -1
+        } else if ($(a).data('x') == $(b).data('x')) {
+          return 0
+        } else {
+          return 1
+        }
+      }),
+      offsetY: offsetY,
+      findX: findX
+    }
+  }
+
+  function getAllCheckedContent() {
+    let result = []
+    let { sorted } = getAllCheckedInfo()
+    sorted.each((idx, elem) => {
+      let isWhite = $(elem).hasClass('hh')
+      result.push({ x: $(elem).data('x'), y: $(elem).data('y'), b: !isWhite })
+    })
+    return JSON.stringify(result)
+  }
+
+  function showAllChecked() {
+    $('#result').val(getAllCheckedContent())
+  }
+
+  function generateJava() {
+    let result = ''
+    let { sorted, findX, offsetY } = getAllCheckedInfo()
+    sorted.each((idx, elem) => {
+      let isWhite = $(elem).hasClass('hh')
+      result += '{' + (parseInt($(elem).data('x')) + -findX) + ',' + (parseInt($(elem).data('y')) - offsetY) + `,${isWhite ? 'white' : 'black'}},`
+    })
+    console.log(result)
+    $('#result').val(result)
+  }
+
+
+  function toMultiConfig() {
+    let { sorted, findX, offsetY } = getAllCheckedInfo()
+    let result = ''
+    sorted.each((idx, elem) => {
+      let isWhite = $(elem).hasClass('hh')
+      result += `[${(parseInt($(elem).data('x')) + -findX)},${(parseInt($(elem).data('y')) - offsetY)},${isWhite ? '\'#ffffff\'' : '\'#000000\''}],`
+    })
+    console.log(result)
+    $('#result').val(result)
+  }
+
+  function backToList() {
+    let result = []
+    let content = $('#result').val()
+    if (content.startsWith('{')) {
+      let dataList = content.split(/\},\n?\s*\{/)
+      let regex = /\{?(-?\d+)\s*,\s*(-?\d+)\s*,\s*(white|black)(\},)?/
+
+      dataList.forEach((line) => {
+        let exec = regex.exec(line)
+        console.log(line)
+        if (exec) {
+          result.push({ x: exec[1], y: exec[2], b: exec[3] === 'black' })
+        }
+      })
+    } else if (content.startsWith('[')) {
+      let dataList = content.split(/\],\n?\s*\[/)
+      let regex = /\[?(-?\d+)\s*,\s*(-?\d+)\s*,\s*'#([0Ff]+)'(\],)?/
+
+      dataList.forEach((line) => {
+        let exec = regex.exec(line)
+        console.log(line)
+        if (exec) {
+          result.push({ x: exec[1], y: exec[2], b: exec[3] === '000000' })
+        }
+      })
+    } else {
+      // 都不符合的不转换
+      return
+    }
+    content = JSON.stringify(result)
+    console.log(content)
+    $('#result').val(content)
+  }
+
+
+  function toggleColor() {
+    color_class = color_class === 'hh' ? 'hb' : 'hh'
+    $('#toggle_color_btn').removeClass('hh').removeClass('hb').addClass(color_class)
+  }
+</script>
+
+</html>

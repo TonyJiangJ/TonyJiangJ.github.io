@@ -2,7 +2,7 @@
  * @Author: TonyJiangWJ
  * @Date: 2020-08-08 00:07:29
  * @Last Modified by: TonyJiangWJ
- * @Last Modified time: 2020-08-11 00:39:14
+ * @Last Modified time: 2020-08-11 17:01:00
  * @Description: 
 -->
 <html>
@@ -428,7 +428,7 @@
       result += '{' + (parseInt($(elem).data('x')) + -findX) + ',' + (parseInt($(elem).data('y')) - offsetY) + `,${isWhite ? 'white' : 'black'}},`
     })
     console.log(result)
-    $('#result').val(result)
+    $('#result').val(result.substring(0, result.length - 1))
   }
 
 
@@ -440,7 +440,7 @@
       result += `[${(parseInt($(elem).data('x')) + -findX)},${(parseInt($(elem).data('y')) - offsetY)},${isWhite ? '\'#ffffff\'' : '\'#000000\''}],`
     })
     console.log(result)
-    $('#result').val(result)
+    $('#result').val(result.substring(0, result.length - 1))
   }
 
   function backToList() {
